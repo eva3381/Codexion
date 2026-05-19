@@ -1,0 +1,436 @@
+# Codexion
+
+*This project has been created as part of the 42 curriculum by <login>.*
+
+## Description
+
+Codexion is a concurrent programming project written in C that simulates a shared co-working environment where multiple coders compete for limited hardware resources.
+
+Each coder is represented by a POSIX thread and repeatedly alternates between:
+- compiling,
+- debugging,
+- refactoring.
+
+To compile successfully, a coder must acquire two shared USB dongles simultaneously. The objective of the project is to coordinate access to these shared resources while avoiding:
+- deadlocks,
+- starvation,
+- race conditions,
+- inaccurate timing,
+- resource conflicts.
+
+The simulation stops when:
+- a coder burns out because they failed to compile before their deadline, or
+- every coder has completed the required number of compilations.
+
+This project focuses on:
+- thread synchronization,
+- mutex and condition variable usage,
+- scheduling algorithms,
+- concurrent resource arbitration,
+- timing precision,
+- safe shared-state management.
+
+---
+
+## Features
+
+- POSIX thread-based simulation
+- FIFO and EDF scheduling policies
+- Accurate burnout monitoring
+- Thread-safe logging system
+- Dongle cooldown management
+- Deadlock prevention strategies
+- Priority queue implementation for scheduling
+- Precise millisecond timing
+- Full memory management without leaks
+
+---
+
+## Project Structure
+
+```text
+coders/
+├── include/
+│   └── codexion.h
+├── src/
+│   ├── main.c
+│   ├── init.c
+│   ├── parser.c
+│   ├── monitor.c
+│   ├── scheduler.c
+│   ├── coder_routine.c
+│   ├── dongles.c
+│   ├── logging.c
+│   ├── timing.c
+│   └── cleanup.c
+├── Makefile
+└── README.md
+```
+
+---
+
+## Compilation
+
+Compile the project using:
+
+```bash
+make
+```
+
+Compilation flags:
+
+```bash
+-Wall -Wextra -Werror -pthread
+```
+
+Available Makefile rules:
+
+```bash
+make
+make clean
+make fclean
+make re
+```
+
+---
+
+## Usage
+
+```bash
+./codexion number_of_coders \
+            time_to_burnout \
+            time_to_compile \
+            time_to_debug \
+            time_to_refactor \
+            number_of_compiles_required \
+            dongle_cooldown \
+            scheduler
+```
+
+### Arguments
+
+| Argument | Description |
+|---|---|
+| `number_of_coders` | Number of coders and dongles |
+| `time_to_burnout` | Maximum time without compiling before burnout (ms) |
+| `time_to_compile` | Time spent compiling (ms) |
+| `time_to_debug` | Time spent debugging (ms) |
+| `time_to_refactor` | Time spent refactoring (ms) |
+| `number_of_compiles_required` | Simulation stops when all coders reach this count |
+| `dongle_cooldown` | Cooldown period after releasing a dongle (ms) |
+| `scheduler` | Scheduling policy: `fifo` or `edf` |
+
+---
+
+## Example
+
+```bash
+./codexion 5 800 200 200 200 5 50 edf
+```
+
+Example output:
+
+```text
+0 1 has taken a dongle
+1 1 has taken a dongle
+1 1 is compiling
+201 1 is debugging
+401 1 is refactoring
+402 2 has taken a dongle
+403 2 has taken a dongle
+403 2 is compiling
+1204 3 burned out
+```
+
+---
+
+## Scheduler Policies
+
+### FIFO — First In, First Out
+
+Dongles are granted in the order requests arrive.
+
+Characteristics:
+- simple implementation,
+- fair request ordering,
+- predictable behavior.
+
+### EDF — Earliest Deadline First
+
+Dongles are granted to the coder whose burnout deadline is closest.
+
+Deadline formula:
+
+```text
+deadline = last_compile_start + time_to_burnout
+```
+
+Characteristics:
+- prioritizes urgent coders,
+- minimizes burnout risk,
+- improves fairness under heavy contention.
+
+---
+
+## Blocking Cases Handled
+
+### Deadlock Prevention
+
+The implementation prevents circular waiting situations where coders indefinitely wait for each other’s dongles.
+
+Strategies may include:
+- ordered resource acquisition,
+- scheduler-controlled arbitration,
+- centralized synchronization logic.
+
+This avoids the classical Coffman deadlock conditions:
+- circular wait,
+- hold and wait,
+- mutual exclusion dependency chains.
+
+---
+
+### Starvation Prevention
+
+The scheduler guarantees that coders eventually gain access to dongles.
+
+Handled through:
+- FIFO queue fairness,
+- EDF priority management,
+- synchronized arbitration mechanisms.
+
+EDF specifically prioritizes coders closest to burnout.
+
+---
+
+### Dongle Cooldown Management
+
+After being released, dongles become temporarily unavailable.
+
+The implementation:
+- tracks cooldown timestamps,
+- blocks premature acquisition,
+- synchronizes cooldown state safely between threads.
+
+---
+
+### Accurate Burnout Detection
+
+A dedicated monitor thread continuously checks coder deadlines.
+
+The monitor:
+- compares current timestamps against burnout deadlines,
+- detects burnout within the required precision window,
+- safely stops the simulation.
+
+---
+
+### Serialized Logging
+
+Concurrent writes to stdout are protected to prevent:
+- mixed messages,
+- partial outputs,
+- corrupted logs.
+
+A dedicated mutex protects all logging operations.
+
+---
+
+## Thread Synchronization Mechanisms
+
+### pthread_mutex_t
+
+Mutexes protect shared resources and shared state.
+
+Used for:
+- dongle ownership,
+- simulation stop flags,
+- logging,
+- coder state updates,
+- scheduler structures.
+
+Protected operations include:
+- taking and releasing dongles,
+- updating compile timestamps,
+- incrementing compile counters.
+
+This prevents race conditions between concurrent threads.
+
+---
+
+### pthread_cond_t
+
+Condition variables coordinate waiting and wake-up events.
+
+Used for:
+- dongle availability notifications,
+- scheduler queue synchronization,
+- cooldown expiration handling.
+
+Threads block efficiently instead of busy-waiting.
+
+---
+
+### Monitor Thread
+
+A dedicated monitoring thread:
+- periodically checks coder deadlines,
+- detects burnout,
+- signals simulation termination.
+
+The monitor communicates safely using:
+- mutex-protected shared state,
+- synchronized stop conditions.
+
+---
+
+### Thread-Safe Communication
+
+Synchronization guarantees:
+- consistent shared state,
+- atomic resource transitions,
+- deterministic logging behavior.
+
+Critical sections are minimized to reduce contention and improve concurrency performance.
+
+---
+
+## Timing Management
+
+The project uses:
+
+```c
+gettimeofday()
+```
+
+for millisecond precision timing.
+
+Custom timing utilities typically handle:
+- timestamp calculation,
+- elapsed time measurement,
+- precise sleeping functions.
+
+Special attention is required because:
+- `usleep()` is not perfectly accurate,
+- operating system scheduling introduces timing variability.
+
+---
+
+## Memory Management
+
+The project ensures:
+- no memory leaks,
+- no double frees,
+- proper mutex destruction,
+- correct thread cleanup,
+- safe dynamic allocation handling.
+
+All allocated resources are released before program termination.
+
+---
+
+## Error Handling
+
+The program validates:
+- negative values,
+- invalid integers,
+- overflow cases,
+- unsupported scheduler names,
+- allocation failures,
+- thread initialization failures.
+
+Invalid input immediately stops execution with an error message.
+
+---
+
+## Allowed Functions
+
+```text
+pthread_create
+pthread_join
+pthread_mutex_init
+pthread_mutex_lock
+pthread_mutex_unlock
+pthread_mutex_destroy
+pthread_cond_init
+pthread_cond_wait
+pthread_cond_timedwait
+pthread_cond_broadcast
+pthread_cond_destroy
+gettimeofday
+usleep
+write
+malloc
+free
+printf
+fprintf
+strcmp
+strlen
+atoi
+memset
+```
+
+---
+
+## Resources
+
+### POSIX Threads Documentation
+
+- https://man7.org/linux/man-pages/man7/pthreads.7.html
+- https://pubs.opengroup.org/onlinepubs/9699919799/functions/pthread_create.html
+
+### Mutexes and Condition Variables
+
+- https://man7.org/linux/man-pages/man3/pthread_mutex_lock.3p.html
+- https://man7.org/linux/man-pages/man3/pthread_cond_wait.3p.html
+
+### Scheduling Algorithms
+
+- https://en.wikipedia.org/wiki/Earliest_deadline_first_scheduling
+- https://en.wikipedia.org/wiki/First_in,_first_out
+
+### Concurrency and Deadlocks
+
+- https://en.wikipedia.org/wiki/Deadlock
+- https://en.wikipedia.org/wiki/Dining_philosophers_problem
+
+### Timing Functions
+
+- https://man7.org/linux/man-pages/man2/gettimeofday.2.html
+- https://man7.org/linux/man-pages/man3/usleep.3.html
+
+---
+
+## AI Usage Disclosure
+
+AI tools were used during the development process for:
+- documentation drafting,
+- brainstorming synchronization strategies,
+- reviewing concurrency concepts,
+- generating test scenarios,
+- improving README structure and wording.
+
+All generated content was manually reviewed, tested and validated before inclusion in the project.
+
+---
+
+## Learning Outcomes
+
+Through this project, the following concepts are practiced:
+
+- multithreading,
+- mutex synchronization,
+- condition variables,
+- concurrent resource sharing,
+- scheduling algorithms,
+- race condition prevention,
+- deadlock avoidance,
+- timing precision,
+- thread-safe programming,
+- systems-level debugging.
+
+---
+
+## License
+
+This project is part of the 42 curriculum and is intended for educational purposes.
