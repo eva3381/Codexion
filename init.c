@@ -10,10 +10,7 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-
-
 #include "codexion.h"
-
 
 static void	init_coder_values(t_hub *hub, int i)
 {

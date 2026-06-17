@@ -22,26 +22,20 @@ long	get_time_ms(void)
 
 void	smart_sleep(long time, t_hub *hub)
 {
-	long    	start;
+	long		start;
 	int			should_stop;
 
 	start = get_time_ms();
 	while (1)
 	{
-		// Protegemos la lectura de la variable compartida
 		pthread_mutex_lock(&hub->stop_mutex);
 		should_stop = hub->stop_sim;
 		pthread_mutex_unlock(&hub->stop_mutex);
-
-		// Si alguien ha muerto o el tiempo ha pasado, salimos
 		if (should_stop || (get_time_ms() - start) >= time)
 			break ;
-		
-		// Dormimos un intervalo pequeño (500us es un buen equilibrio)
 		usleep(500);
 	}
 }
-
 
 void	print_status(t_coder *coder, char *status)
 {

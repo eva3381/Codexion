@@ -49,10 +49,10 @@ void	bubble_down(t_queue *q, int index)
 		smallest = index;
 		left = 2 * index + 1;
 		right = 2 * index + 2;
-		if (left < q->size && q->nodes[left].priority_value \
+		if (left < q->size && q->nodes[left].priority_value
 			< q->nodes[smallest].priority_value)
 			smallest = left;
-		if (right < q->size && q->nodes[right].priority_value \
+		if (right < q->size && q->nodes[right].priority_value
 			< q->nodes[smallest].priority_value)
 			smallest = right;
 		if (smallest != index)
